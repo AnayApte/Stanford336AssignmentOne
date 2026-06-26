@@ -4,71 +4,69 @@ from collections import defaultdict
 # Not used in the current implementation, but could be useful for tokenization.
 PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
-# Start by creating a vocabulary of bytes,
-# where the key is the index of the byte and the value is the byte itself.
-vocab = {}
-for i in range(256):
-    vocab[i] = bytes([i])
-vocab[256] = '<|endoftext|>'.encode('utf-8')
-special_tokens = [256]  # List of special tokens, starting with the end-of-text token.
+# Takes the path, VOCAB_SIZE IS FINAL SIZE, and list of special tokens
+# Outputs the vocabulary and merges list.
 
+# VOCAB_SIZE includes special tokens and merges
 def train_bpe(input_path, vocab_size, special_tokens):
-    # Read the input text file and convert it to a list.
+    # (GOOD) Intial vocabulary. STEP 1
+    vocab = {i: bytes([i]) for i in range(256)}
+    vocab[256] = '<|endoftext|>'.encode('utf-8')  # This is specifically for the twopointfour example.
+    for i in range(257, 257+len(special_tokens)):
+        vocab[i] = special_tokens[i-257].encode('utf-8')  # Add any additional special tokens to the vocabulary.
+   
+    # (GOOD) Read the input text file and convert it to a list. STEP 2
     with open(input_path, 'r') as f:
         text = f.read()
 
-    # Split based on whitespace.
+    # (GOOD) Split based on whitespace. STEP 2
     words = text.split()
+
     frequencies = defaultdict(int)
 
-    # Count the frequency of each chunk of bytes in the text.
+    # (GOOD) Count the frequency of each chunk of bytes in the text 
     for word in words:
         word_tuple = tuple(bytes([b]) for b in word.encode('utf-8'))
         frequencies[word_tuple] += 1
     
-    # Creates a dictionary counting the frequency of byte pairs
-    byte_pairs = defaultdict(int)
-    for word, freq in frequencies.items():
-        for i in range(len(word) - 1):
-            byte_pairs[(word[i], word[i + 1])] += freq
-    
-    # Sort the byte pairs by frequency.
-    byte_pairs = sorted(byte_pairs.items(), key=lambda x: (-x[1], x[0]))
-    
     merges = []
+    initialSize = len(vocab)
 
-    next_id = max(vocab.keys()) + 1  # Start assigning new IDs after the last existing ID.
+    while len(merges) < vocab_size - initialSize:
 
-    while len(merges) < vocab_size - len(vocab):
-        if(len(byte_pairs) == 0):
-            break
-        merges.append(byte_pairs[0][0]) # Add the most frequent byte pair to the merges list.
-        vocab[next_id] = b''.join(merges[-1]) # Add the new token to the vocabulary.
-        next_id += 1
-
-        new_frequencies = defaultdict(int)
+        # Byte pairs will keep changing based on words. Need to create a new one each loop.
+        bytePairs = defaultdict(int)
         for word, freq in frequencies.items():
-            new_word = []
+            for i in range(len(word) - 1):
+                bytePairs[(word[i], word[i + 1])] += freq
+        
+        # Case where all possible pairs merged - ex: vocab_size is so large
+        if(len(bytePairs) == 0):
+            break
+
+        # Sort the byte pairs by frequency. Break by lexicographical order.
+        bytePairs = max(bytePairs.items(), key=lambda x: (x[1], x[0]))
+
+        merges.append(bytePairs[0]) # Add the most frequent byte pair to the merges list.
+        vocab[len(vocab)] = (b''.join(merges[-1])) # Add the new merged byte pair to the vocabulary.
+
+        for word_bytes in list(frequencies.keys()):
             i = 0
-            while i < len(word):
-                if i < len(word) - 1 and (word[i], word[i + 1]) == merges[-1]:
+            new_word = []
+            while i < len(word_bytes) - 1:
+                if word_bytes[i: i+2] == merges[-1]:
                     new_word.append(b''.join(merges[-1]))
                     i += 2
                 else:
-                    new_word.append(word[i])
+                    new_word.append(word_bytes[i])
                     i += 1
-            new_frequencies[tuple(new_word)] += freq
-        frequencies = new_frequencies
-        byte_pairs = defaultdict(int)
-        for word, freq in frequencies.items():
-            for i in range(len(word) - 1):
-                byte_pairs[(word[i], word[i + 1])] += freq
-    
-        # Sort the byte pairs by frequency.
-        byte_pairs = sorted(byte_pairs.items(), key=lambda x: (-x[1], x[0]))
+            if i == len(word_bytes) - 1:
+                new_word.append(word_bytes[i])
+            freq = frequencies.pop(word_bytes)
+            frequencies[tuple(new_word)] += freq
 
     return vocab, merges
 
-vocab, merges = train_bpe('twopointfour.txt', 262, special_tokens)
+vocab, merges = train_bpe('twopointfour.txt', 263, [])
 print(vocab)
 print(merges)
