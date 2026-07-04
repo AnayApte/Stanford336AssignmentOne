@@ -1,5 +1,6 @@
 from __future__ import annotations
 from cs336_basics.twopointfive import train_bpe
+from cs336_basics.twopointsix import Tokenizer
 
 import os
 from collections.abc import Iterable
@@ -560,8 +561,7 @@ def get_tokenizer(
     Returns:
         A BPE tokenizer that uses the provided vocab, merges, and special tokens.
     """
-    raise NotImplementedError
-
+    return Tokenizer(vocab, merges, special_tokens)
 
 def run_train_bpe(
     input_path: str | os.PathLike,
