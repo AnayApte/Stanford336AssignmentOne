@@ -1,6 +1,10 @@
 from __future__ import annotations
 from cs336_basics.twopointfive import train_bpe
 from cs336_basics.twopointsix import Tokenizer
+from cs336_basics.threepointthreepointtwo import Linear
+from cs336_basics.threepointthreepointthree import Embedding
+from cs336_basics.threepointfourpointone import RMSNorm
+from cs336_basics.threepointfourpointtwo import FFN
 
 import os
 from collections.abc import Iterable
@@ -31,7 +35,9 @@ def run_linear(
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
 
-    raise NotImplementedError
+    linear = Linear(d_in, d_out)
+    linear.load_state_dict({"weight": weights})
+    return linear.forward(in_features)
 
 
 def run_embedding(
@@ -53,7 +59,9 @@ def run_embedding(
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
 
-    raise NotImplementedError
+    embedding = Embedding(vocab_size, d_model)
+    embedding.load_state_dict({"embedding": weights})
+    return embedding.forward(token_ids)
 
 
 def run_swiglu(
@@ -85,7 +93,11 @@ def run_swiglu(
     # swiglu.w1.weight.data = w1_weight
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+    swiglu = FFN(d_model, d_ff)
+    swiglu.w1.weight.data = w1_weight
+    swiglu.w2.weight.data = w2_weight
+    swiglu.w3.weight.data = w3_weight
+    return swiglu.forward(in_features)
 
 
 def run_scaled_dot_product_attention(
@@ -380,7 +392,9 @@ def run_rmsnorm(
         Float[Tensor,"... d_model"]: Tensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    raise NotImplementedError
+    rmsnorm = RMSNorm(d_model, eps)
+    rmsnorm.load_state_dict({"weight": weights})
+    return rmsnorm.forward(in_features)
 
 
 def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
