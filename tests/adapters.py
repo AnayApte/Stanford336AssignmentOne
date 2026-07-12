@@ -8,6 +8,8 @@ from cs336_basics.threepointfourpointtwo import FFN
 from cs336_basics.threepointfourpointthree import Rope
 from cs336_basics.threepointfourpointfour import softmax
 from cs336_basics.threepointfourpointfour import scaled_dot_product_attention
+from cs336_basics.threepointfourpointfive import CausalSelfAttention
+from cs336_basics.threepointfive import TransformerBlock
 
 import os
 from collections.abc import Iterable
@@ -155,7 +157,12 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_model"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    causal_self_attention = CausalSelfAttention(d_model, num_heads)
+    causal_self_attention.q_proj.weight.data = q_proj_weight
+    causal_self_attention.k_proj.weight.data = k_proj_weight
+    causal_self_attention.v_proj.weight.data = v_proj_weight
+    causal_self_attention.o_proj.weight.data = o_proj_weight
+    return causal_self_attention.forward(in_features)
 
 
 def run_multihead_self_attention_with_rope(
@@ -195,7 +202,12 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_model"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    causal_self_attention = CausalSelfAttention(d_model, num_heads, theta, max_seq_len)
+    causal_self_attention.q_proj.weight.data = q_proj_weight
+    causal_self_attention.k_proj.weight.data = k_proj_weight
+    causal_self_attention.v_proj.weight.data = v_proj_weight
+    causal_self_attention.o_proj.weight.data = o_proj_weight
+    return causal_self_attention.forward(in_features, token_positions)
 
 
 def run_rope(
@@ -291,7 +303,10 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    transformer = TransformerBlock(d_model, num_heads, d_ff, theta, max_seq_len)
+    weights = {k.replace("output_proj", "o_proj"): v for k, v in weights.items()}
+    transformer.load_state_dict(weights)
+    return transformer.forward(in_features)
 
 
 def run_transformer_lm(
