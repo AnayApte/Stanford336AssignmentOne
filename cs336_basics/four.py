@@ -41,3 +41,25 @@ def cross_entropy_loss(logits, targets):
     logits_at_targets = logits.gather(-1, index = targets.unsqueeze(-1)).squeeze(-1)
     loss = torch.logsumexp(logits, dim = -1) - logits_at_targets
     return torch.mean(loss)
+
+def cosine_learning_rate(t, a_max, a_min, T_w, T_c):
+    # t is the current iteration
+    # a_max is the maximum learning rate
+    # a_min is the minimum final learning rate
+    # T_w is the number of warmup iterations
+    # T_c is the final iteration of cosine annealing
+    if t < T_w:
+        return a_max * t / T_w
+    elif t <= T_c:
+        return a_min + (a_max - a_min) * (1 + math.cos(math.pi * (t - T_w) / (T_c - T_w))) / 2
+    else:
+        return a_min
+
+def gradient_clipping(parameters, max_norm):
+    total_norm = torch.sqrt(sum(p.grad.data.norm()**2 for p in parameters if p.grad is not None))
+    if total_norm >= max_norm:
+        for p in parameters:
+            if p.grad is not None:
+                p.grad.data.mul_(max_norm / (total_norm + 1e-6))
+
+    return parameters
